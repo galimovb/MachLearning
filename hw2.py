@@ -1,5 +1,6 @@
 import pygame
 import numpy as np
+from sklearn.cluster import KMeans
 
 pygame.init()
 
@@ -20,24 +21,6 @@ flags = []   # Флажки для точек
 eps = 50  # Радиус окрестности
 min_samples = 3  # Минимальное количество соседей
 
-# Функция для отображения точек
-def draw_points():
-    for i, point in enumerate(points):
-        pygame.draw.circle(screen, flags[i], point, 5)
-    pygame.display.flip()
-
-# Функция для подсчета соседей каждой точки
-def count_neighbors(point_index):
-    green_neighbor = False
-    count = 0
-    for i in range(len(points)):
-        if i != point_index and np.linalg.norm(np.array(points[point_index]) - np.array(points[i])) <= 50:
-            count += 1
-            if flags[i] == GREEN:
-                green_neighbor = True
-    return count, green_neighbor
-
-
 run = True
 while run:
     for event in pygame.event.get():
@@ -48,17 +31,39 @@ while run:
                 pos = pygame.mouse.get_pos()
                 points.append(pos)
                 flags.append(BLACK)
-                draw_points()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RETURN:  # Клавиша Enter
+
                 for i in range(len(points)):
-                    neighbors_count, has_green_neighbor = count_neighbors(i)
-                    if has_green_neighbor and 1 <= neighbors_count <= 2:
+                    green_neighbor = False
+                    count = 0
+                    for j in range(len(points)):
+                        if j != i and np.linalg.norm(np.array(points[i]) - np.array(points[j])) <= eps:
+                            count += 1
+                            if flags[j] == GREEN:
+                                green_neighbor = True
+
+                    if green_neighbor and 1 <= count <= 2:
                         flags[i] = YELLOW
-                    elif neighbors_count >= min_samples:
+                    elif count >= min_samples:
                         flags[i] = GREEN
                     else:
                         flags[i] = RED
-                draw_points()
+
+                for i, point in enumerate(points):
+                    pygame.draw.circle(screen, flags[i], point, 5)
+                pygame.display.flip()
+
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:  # Нажатие клавиши Enter
+                unique_colors = [(np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256)) for _ in range(len(set(flags)))]
+
+                X = np.array(points)
+                kmeans = KMeans(n_clusters=len(set(flags)), random_state=0).fit(X)
+
+                for i, label in enumerate(kmeans.labels_):
+                    flags[i] = unique_colors[label]
+
+                for i, point in enumerate(points):
+                    pygame.draw.circle(screen, flags[i], point, 5)
+                pygame.display.flip
 
 pygame.quit()
